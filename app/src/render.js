@@ -1,8 +1,8 @@
 // Cover Coast v8 — one renderer for preview AND export (same pixels, same seed).
 // Canvas 2D only, no network, deterministic: seeded grain + halftone + sunburst.
 export const PHOTOS = [
-  { id: 'boulevard', file: 'samples/boulevard.jpg', label: 'Boulevard', place: 'OCEAN DRIVE', time: '6:42 PM', line: 'LOOKING FOR TROUBLE' },
-  { id: 'pier', file: 'samples/pier.jpg', label: 'Pier', place: 'LONELY PIER', time: '5:15 PM', line: 'ONE LAST CAST' },
+  { id: 'boulevard', file: 'samples/boulevard.jpg', label: 'Boulevard', place: 'OCEAN DRIVE', time: '6:42 PM', line: 'LOOKING FOR TROUBLE', fy: 0.30 },
+  { id: 'pier', file: 'samples/pier.jpg', label: 'Pier', place: 'LONELY PIER', time: '5:15 PM', line: 'ONE LAST CAST', fy: 0.28 },
   { id: 'skyline', file: 'samples/skyline.png', label: 'Skyline', place: 'DOWNTOWN', time: '7:58 PM', line: 'THE CITY NEVER SLEEPS', fx: 0.66 },
   { id: 'neon', file: 'samples/neon.png', label: 'Neon Street', place: 'NEON ROW', time: '11:20 PM', line: 'NO WITNESSES', fx: 0.16 },
   { id: 'speedboat', file: 'samples/speedboat.png', label: 'Speedboat', place: 'VISTA BAY', time: '4:05 PM', line: 'FULL THROTTLE', fx: 0.52 },
@@ -112,23 +112,6 @@ function gradeImageData(img, grade, strength) {
   return img;
 }
 
-function drawPhotoInto(ctx, img, slot, slotState) {
-  const { x, y, w, h } = slot;
-  const zoom = slotState?.zoom ?? 1;
-  const fx = slotState?.px ?? 0.5, fy = slotState?.py ?? 0.5;
-  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-  const base = Math.max(w / iw, h / ih) * zoom;
-  const pw = iw * base, ph = ih * base;
-  const dx = x + w / 2 - pw * fx;
-  const dy = y + h / 2 - ph * fy;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, y, w, h);
-  ctx.clip();
-  ctx.drawImage(img, dx, dy, pw, ph);
-  ctx.restore();
-}
-
 function star(ctx, cx, cy, r, fill) {
   ctx.beginPath();
   for (let i = 0; i < 10; i++) {
@@ -191,9 +174,17 @@ export function renderCover(ctx, W, H, state, images) {
     // draw the slot's crop into the temp canvas, then grade its pixels
     const zoom = ss?.zoom ?? 1, fx = ss?.px ?? 0.5, fy = ss?.py ?? 0.5;
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-    const base = Math.max(tw / iw, th / ih) * zoom;
-    const pw = iw * base, ph = ih * base;
-    tctx.drawImage(img, tw / 2 - pw * fx, th / 2 - ph * fy, pw, ph);
+    // cover scale, boosted (capped 1.6x) so a shifted focal point never
+    // exposes empty space; the focal point is then clamped to what the
+    // boosted scale can actually show
+    let scale = Math.max(tw / iw, th / ih);
+    const needX = (tw / 2) / (iw * Math.min(Math.max(fx, 0.05), 0.95));
+    const needY = (th / 2) / (ih * Math.min(Math.max(fy, 0.05), 0.95));
+    scale = Math.min(Math.max(scale, needX, needY), scale * 1.6) * zoom;
+    const pw = iw * scale, ph = ih * scale;
+    const fx2 = Math.min(Math.max(fx, (tw / 2) / pw), 1 - (tw / 2) / pw);
+    const fy2 = Math.min(Math.max(fy, (th / 2) / ph), 1 - (th / 2) / ph);
+    tctx.drawImage(img, tw / 2 - pw * fx2, th / 2 - ph * fy2, pw, ph);
     const data = tctx.getImageData(0, 0, tw, th);
     gradeImageData(data, grade, strength);
     tctx.putImageData(data, 0, 0);
@@ -222,6 +213,9 @@ export function renderCover(ctx, W, H, state, images) {
       const bandH = state.layout === 'poster-strip' ? 0 : H * 0.062;
       let cy = slot.y + slot.h - pad - chipH;
       if (slot.y + slot.h > H - bandH - pad) cy = Math.min(cy, H - bandH - pad - chipH);
+      // never draw a chip under the giant title band
+      const tY = state.titlePos === 'top' ? areaH * 0.20 : state.titlePos === 'bottom' ? areaH * 0.80 : areaH * 0.60;
+      if (Math.abs(cy + chipH / 2 - tY) < H * 0.10) return;
       ctx.fillStyle = 'rgba(12,6,20,0.82)';
       roundRect(ctx, cx, cy, chipW, chipH, Math.max(3, W * 0.004));
       ctx.fill();
@@ -336,11 +330,12 @@ export function renderCover(ctx, W, H, state, images) {
     ctx.restore();
   }
 
-  // --- star meter ---
+  // --- star meter (anchored from the right edge so the 5th star never clips) ---
   const stars = state.stars ?? 5;
   const sr = Math.max(7, H * 0.014);
+  const starRight = W * 0.98 - sr;
   for (let i = 0; i < 5; i++) {
-    star(ctx, W * 0.86 + i * sr * 2.4, H * 0.055, sr, i < stars ? '#ffd76a' : 'rgba(255,255,255,0.35)');
+    star(ctx, starRight - (4 - i) * sr * 2.4, H * 0.055, sr, i < stars ? '#ffd76a' : 'rgba(255,255,255,0.35)');
   }
   ctx.textAlign = 'right';
   ctx.fillStyle = '#ffffff';

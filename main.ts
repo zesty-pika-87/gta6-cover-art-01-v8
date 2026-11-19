@@ -92,4 +92,4 @@ writeFileSync(
   }),
 );
 
-console.log(`Cover Coast v8: ${appFiles.length} app files (${appBytes} bytes), ${shots.length} screenshots -> ${out}`);
+console.log(`Cover Coast v8: ${appFiles.length} app files (${appBytes} bytes), ${shots.length} screenshots, dossier.json ${statSync(join(out, 'dossier.json')).size} bytes -> ${out}`);
