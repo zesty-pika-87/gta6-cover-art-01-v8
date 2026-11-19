@@ -65,20 +65,37 @@ function lineMask(mask, x0, y0, x1, y1, thick) {
     }
   }
 }
+function curveMask(mask, x0, y0, cx, cy, x1, y1, thick) {
+  const r = Math.max(1, Math.round(thick / 2));
+  // stamp circles closer together than their diameter, so the curve is solid
+  const len = Math.hypot(x1 - x0, y1 - y0) + Math.hypot(cx - x0, cy - y0);
+  const steps = Math.max(28, Math.ceil(len / 2.5));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const px = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x1;
+    const py = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y1;
+    const ccx = Math.round(px), ccy = Math.round(py);
+    for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
+      const xx = ccx + a, yy = ccy + b;
+      if (xx >= 0 && xx < W && yy >= 0 && yy < H) mask[yy * W + xx] = 1;
+    }
+  }
+}
 function palmMask(seed, baseX, baseY, height, lean) {
   const mask = new Uint8Array(W * H);
   const rnd = mulberry32(seed);
   const topX = baseX + lean, topY = baseY - height;
-  lineMask(mask, baseX, baseY, topX, topY, 9);
-  const fronds = 7 + Math.floor(rnd() * 3);
+  // gently curved trunk
+  curveMask(mask, baseX, baseY, baseX + lean * 0.4, baseY - height * 0.5, topX, topY, 9);
+  const fronds = 8 + Math.floor(rnd() * 3);
   for (let i = 0; i < fronds; i++) {
-    const ang = (-Math.PI * (0.08 + (i / fronds) * 0.84)) + (rnd() - 0.5) * 0.25;
-    const len = height * (0.42 + rnd() * 0.22);
-    const ex = topX + Math.cos(ang) * len, ey = topY + Math.sin(ang) * len * 0.55 + len * 0.28;
-    // drooping frond: two segments
-    const mx = topX + Math.cos(ang) * len * 0.55, my = topY + Math.sin(ang) * len * 0.3 + len * 0.12;
-    lineMask(mask, topX, topY, mx, my, 4);
-    lineMask(mask, mx, my, ex, ey + len * 0.22, 3);
+    const ang = (-Math.PI * (0.06 + (i / fronds) * 0.88)) + (rnd() - 0.5) * 0.2;
+    const len = height * (0.44 + rnd() * 0.20);
+    const ex = topX + Math.cos(ang) * len;
+    const ey = topY + Math.sin(ang) * len * 0.45 + len * 0.42; // drooping tip
+    const mx = topX + Math.cos(ang) * len * 0.55;
+    const my = topY + Math.sin(ang) * len * 0.30 - len * 0.06; // control lifts, tip falls
+    curveMask(mask, topX, topY, mx, my, ex, ey, 4);
   }
   // coconuts
   lineMask(mask, topX - 6, topY + 4, topX + 6, topY + 4, 7);
@@ -187,16 +204,31 @@ const SIGNS = [
   { x: 0.78, y: 0.08, w: 0.17, h: 0.08, c: [255, 214, 64] },
   { x: 0.80, y: 0.26, w: 0.13, h: 0.05, c: [0, 255, 170] },
   { x: 0.30, y: 0.05, w: 0.10, h: 0.05, c: [190, 90, 255] },
+  { x: 0.44, y: 0.16, w: 0.05, h: 0.20, c: [255, 45, 149] },
+  { x: 0.60, y: 0.12, w: 0.05, h: 0.16, c: [0, 229, 255] },
 ];
+function neonBuildingTop(nx) {
+  const seg = Math.floor(nx * 10);
+  return 0.72 - (0.22 + hash2(seg, 0, 9) * 0.36);
+}
 render('neon.png', 22, (nx, ny, x, y, px) => {
   const sky = grad([[0, [10, 8, 34]], [0.5, [26, 14, 58]], [1, [58, 20, 74]]], ny);
   px[0] = sky[0]; px[1] = sky[1]; px[2] = sky[2];
   const n = vnoise(nx * 18, ny * 18, 7);
   px[0] += (n - 0.5) * 10; px[1] += (n - 0.5) * 10; px[2] += (n - 0.5) * 12;
-  // buildings left/right
-  const edge = 0.16 + 0.10 * vnoise(nx * 3, 0.5, 9);
-  const inB = (nx < edge && ny < 0.72) || (nx > 1 - edge && ny < 0.72);
-  if (inB) { px[0] = 14; px[1] = 10; px[2] = 30; }
+  // building silhouettes across the whole width, with lit windows
+  const top = neonBuildingTop(nx);
+  if (ny > top && ny < 0.72) {
+    px[0] = 13; px[1] = 9; px[2] = 28;
+    const wx = Math.floor(nx * 60), wy = Math.floor(ny * 60);
+    const wh = hash2(wx, wy, 31);
+    if (wh < 0.10) {
+      const wc = hash2(wx, wy, 32);
+      if (wc < 0.4) { px[0] = 255; px[1] = 214; px[2] = 100; }
+      else if (wc < 0.7) { px[0] = 0; px[1] = 229; px[2] = 255; }
+      else { px[0] = 255; px[1] = 80; px[2] = 160; }
+    }
+  }
   // neon signs + glow
   for (const s of SIGNS) {
     const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
@@ -216,24 +248,32 @@ render('neon.png', 22, (nx, ny, x, y, px) => {
       px[0] = 16 + persp * 8; px[1] = 14 + persp * 6; px[2] = 30 + persp * 10;
       // reflections: vertical streaks under each sign colour
       for (const s of SIGNS) {
-        const streak = Math.max(0, 1 - Math.abs(nx - (s.x + s.w / 2)) / 0.05) * (0.5 + 0.5 * vnoise(nx * 90, ny * 8, 4));
+        const streak = Math.max(0, 1 - Math.abs(nx - (s.x + s.w / 2)) / 0.07) * (0.5 + 0.5 * vnoise(nx * 90, ny * 8, 4));
         const fade = (1 - persp) * 0.9;
-        px[0] += s.c[0] * streak * fade * 0.5; px[1] += s.c[1] * streak * fade * 0.5; px[2] += s.c[2] * streak * fade * 0.5;
+        px[0] += s.c[0] * streak * fade * 0.8; px[1] += s.c[1] * streak * fade * 0.8; px[2] += s.c[2] * streak * fade * 0.8;
       }
       // centre dashes
       const dashY = ((ny * 14) % 1);
       if (Math.abs(nx - 0.5) < 0.008 && dashY < 0.45) { px[0] = 240; px[1] = 220; px[2] = 120; }
     } else { px[0] = 10; px[1] = 8; px[2] = 22; }
   }
-  // string lights
-  const ly = 0.30 + 0.05 * Math.sin(nx * 9);
-  if (Math.abs(ny - ly) < 0.006 && hash2(Math.floor(nx * 60), 0, 55) < 0.7) {
-    px[0] = 255; px[1] = 214; px[2] = 140;
+  // string lights: discrete warm bulbs along a sagging wire
+  for (let k = 0; k <= 26; k++) {
+    const lx = k / 26, ly = 0.34 + 0.05 * Math.sin(lx * 9);
+    const d = Math.hypot((nx - lx) * 1.2, (ny - ly) * 2.0);
+    if (d < 0.010) { px[0] = 255; px[1] = 214; px[2] = 140; }
+    else if (d < 0.018) { px[0] += 50; px[1] += 34; px[2] += 10; }
   }
   addGrain(px, x, y, 32, 12);
 });
 
 // ---------- scene 3: ocean speedboat ----------
+const CLOUDS = [
+  { x: 0.62, y: 0.15, rx: 0.20, ry: 0.045 },
+  { x: 0.86, y: 0.27, rx: 0.14, ry: 0.035 },
+  { x: 0.30, y: 0.30, rx: 0.12, ry: 0.030 },
+  { x: 0.08, y: 0.12, rx: 0.11, ry: 0.028 },
+];
 render('speedboat.png', 33, (nx, ny, x, y, px) => {
   const sky = grad([[0, [255, 196, 110]], [0.3, [255, 224, 170]], [0.45, [150, 214, 226]], [1, [40, 150, 190]]], ny);
   px[0] = sky[0]; px[1] = sky[1]; px[2] = sky[2];
@@ -242,35 +282,44 @@ render('speedboat.png', 33, (nx, ny, x, y, px) => {
     const glow = Math.max(0, 1 - d / 0.3);
     px[0] += glow * 60; px[1] += glow * 40; px[2] += glow * 10;
     if (d < 0.06) { px[0] = 255; px[1] = 244; px[2] = 200; }
-    const cl = vnoise(nx * 6, ny * 6, 8);
-    if (cl > 0.62 && ny > 0.08 && ny < 0.34) { px[0] = 255; px[1] = 250; px[2] = 245; }
+    // soft elliptical clouds (fixed, controlled — no noise blobs)
+    for (const c of CLOUDS) {
+      const cd = ((nx - c.x) / c.rx) ** 2 + ((ny - c.y) / c.ry) ** 2;
+      if (cd < 1) {
+        const k = (1 - cd) * 0.92;
+        px[0] = lerp(px[0], 255, k); px[1] = lerp(px[1], 250, k); px[2] = lerp(px[2], 245, k);
+      }
+    }
   } else {
     // sea
     const wave = vnoise(nx * 14, ny * 40, 6);
     const depth = (ny - 0.42) / 0.58;
-    px[0] = lerp(24, 8, depth) + (wave - 0.5) * 26;
-    px[1] = lerp(148, 60, depth) + (wave - 0.5) * 30;
-    px[2] = lerp(186, 96, depth) + (wave - 0.5) * 26;
-    // sun glitter
-    if (Math.abs(nx - 0.24) < 0.10 * (0.5 + depth) && wave > 0.72) { px[0] = 255; px[1] = 240; px[2] = 190; }
-    // wake foam behind boat (boat centre ~0.52, 0.52)
+    px[0] = lerp(24, 8, depth) + (wave - 0.5) * 16;
+    px[1] = lerp(148, 60, depth) + (wave - 0.5) * 18;
+    px[2] = lerp(186, 96, depth) + (wave - 0.5) * 16;
+    // sun glitter: small speckles only, near the sun's column
+    if (Math.abs(nx - 0.24) < 0.07 * (0.5 + depth) && wave > 0.86) { px[0] = 255; px[1] = 240; px[2] = 190; }
+    // wake foam behind the boat (boat centre ~0.52, 0.52), fading with distance
     const wakeX = 0.52 - (ny - 0.52) * 1.6;
-    if (ny > 0.52 && Math.abs(nx - wakeX) < 0.10 + (ny - 0.52) * 0.5 && vnoise(nx * 40, ny * 40, 12) > 0.42) {
-      px[0] = 245; px[1] = 252; px[2] = 250;
+    const wakeFade = 1 - (ny - 0.52) / 0.48;
+    if (ny > 0.52 && ny < 0.98 && Math.abs(nx - wakeX) < 0.045 + (ny - 0.52) * 0.35
+        && vnoise(nx * 40, ny * 40, 12) > 0.58 && wakeFade > 0) {
+      const k = wakeFade * 0.9;
+      px[0] = lerp(px[0], 245, k); px[1] = lerp(px[1], 252, k); px[2] = lerp(px[2], 250, k);
     }
-    // boat hull: trapezoid + cabin
-    const hullTop = 0.50, hullBot = 0.565;
-    const hw = lerp(0.02, 0.16, (ny - hullTop) / (hullBot - hullTop));
+    // boat hull (bigger now): trapezoid + red stripe + cabin + driver
+    const hullTop = 0.465, hullBot = 0.56;
+    const hw = lerp(0.03, 0.20, (ny - hullTop) / (hullBot - hullTop));
     if (ny > hullTop && ny < hullBot && Math.abs(nx - 0.52) < hw) {
       px[0] = 245; px[1] = 246; px[2] = 240;
-      if (ny > hullBot - 0.012) { px[0] = 220; px[1] = 40; px[2] = 60; }
+      if (ny > hullBot - 0.014) { px[0] = 220; px[1] = 40; px[2] = 60; }
     }
-    if (ny > 0.455 && ny < 0.50 && Math.abs(nx - 0.52) < 0.055) {
+    if (ny > 0.425 && ny < 0.465 && Math.abs(nx - 0.52) < 0.075) {
       px[0] = 30; px[1] = 42; px[2] = 58; // windshield
       if (nx > 0.52) { px[0] = 120; px[1] = 200; px[2] = 230; }
     }
     // driver silhouette
-    if (ny > 0.44 && ny < 0.46 && Math.abs(nx - 0.50) < 0.012) { px[0] = 20; px[1] = 20; px[2] = 26; }
+    if (ny > 0.415 && ny < 0.435 && Math.abs(nx - 0.50) < 0.014) { px[0] = 20; px[1] = 20; px[2] = 26; }
   }
   addGrain(px, x, y, 33, 11);
 });

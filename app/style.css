@@ -1,12 +1,42 @@
-html, body { margin: 0; height: 100%; background: #f2f0f4; color: #1d1b22; font: 15px/1.4 system-ui, sans-serif; }
-.app { display: flex; gap: 32px; align-items: center; justify-content: center; height: 100%; padding: 24px; box-sizing: border-box; }
-.controls { display: flex; flex-direction: column; gap: 14px; width: 280px; }
-.controls h1 { margin: 0; font-size: 28px; }
-.controls p { margin: 0; color: #5c5866; }
-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
-input[type=text] { font: inherit; padding: 8px; border: 1px solid #c9c4d1; border-radius: 6px; }
-button { font: inherit; font-weight: 700; padding: 10px; border: 0; border-radius: 6px; background: #1d1b22; color: #fff; cursor: pointer; }
-canvas { width: min(70vh, 60vw); height: min(70vh, 60vw); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); }
-body.shot-cover .controls { display: none; }
-body.shot-cover .app { padding: 0; }
-body.shot-cover canvas { width: 100vw; height: 100vh; box-shadow: none; }
+@font-face { font-family: 'Anton'; src: url('./fonts/Anton-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Pacifico'; src: url('./fonts/Pacifico-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+
+html, body { margin: 0; min-height: 100%; background: #17101f; color: #f4ecff; font: 15px/1.45 system-ui, -apple-system, sans-serif; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 22px; background: linear-gradient(90deg, #2b0f3d, #7a1042 60%, #c22a5e); border-bottom: 3px solid #ffd76a; }
+.topbar h1 { margin: 0; font-family: Anton, 'Arial Black', sans-serif; font-size: 30px; letter-spacing: 2px; color: #ffd76a; text-transform: uppercase; }
+.topbar .tag { margin: 0; color: #ffd9e8; font-size: 13px; }
+.top-actions { display: flex; gap: 8px; }
+.app { display: grid; grid-template-columns: minmax(420px, 1fr) 380px; gap: 20px; padding: 20px 22px 40px; align-items: start; }
+.stage { position: sticky; top: 16px; }
+#cover { width: 100%; max-width: 760px; aspect-ratio: 1; display: block; background: #fff3df; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55); border-radius: 4px; cursor: crosshair; }
+.hint { color: #b9a8cc; font-size: 13px; }
+#status { color: #ffd76a; min-height: 1.2em; }
+.controls { display: flex; flex-direction: column; gap: 18px; }
+.controls section { background: #221630; border: 1px solid #3d2450; border-radius: 10px; padding: 14px; }
+.controls h2 { margin: 0 0 10px; font-family: Anton, sans-serif; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: #ffd76a; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; font-weight: 700; padding: 9px 12px; border: 1px solid #5a3a72; border-radius: 7px; background: #2e1c40; color: #f4ecff; cursor: pointer; }
+button:hover { background: #3d2653; }
+button.active { background: #ff2e63; border-color: #ff2e63; color: #fff; }
+button.primary { width: 100%; background: #ff2e63; border-color: #ff2e63; margin-top: 8px; }
+button:disabled { opacity: 0.4; cursor: default; }
+#grades button { background-image: var(--sw, none); background-size: cover; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+label.check { flex-direction: row; align-items: center; gap: 8px; }
+input[type=text], input[type=number], select { font: inherit; padding: 8px; border: 1px solid #5a3a72; border-radius: 6px; background: #17101f; color: #f4ecff; }
+input[type=range] { width: 100%; accent-color: #ff2e63; }
+.muted { color: #b9a8cc; font-size: 13px; }
+.thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.thumb { padding: 0; overflow: hidden; border-radius: 7px; position: relative; }
+.thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
+.thumb span { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(12,6,20,0.8); font-size: 11px; padding: 3px 5px; text-align: left; }
+.thumb.active { outline: 3px solid #ffd76a; }
+.file { font-weight: 600; }
+
+/* screenshot scenes: cover alone, full-bleed */
+body.shot-cover .topbar, body.shot-cover .controls, body.shot-cover .hint, body.shot-cover #status { display: none; }
+body.shot-cover { background: #fff3df; }
+body.shot-cover .app { display: block; padding: 0; }
+body.shot-cover .stage { position: static; }
+body.shot-cover #cover { width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; box-shadow: none; border-radius: 0; }
+body.shot-story #cover { aspect-ratio: 1080 / 1350; }

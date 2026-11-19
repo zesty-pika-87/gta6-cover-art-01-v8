@@ -3,20 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cover Snap</title>
+<title>Cover Coast — GTA 6 Cover Art Studio</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+<header class="topbar">
+  <div>
+    <h1>Cover Coast</h1>
+    <p class="tag">GTA 6 cover art studio — collage, grade, letter, export.</p>
+  </div>
+  <div class="top-actions">
+    <button id="undo" type="button" title="Undo (Ctrl+Z)">↩ Undo</button>
+    <button id="redo" type="button" title="Redo (Ctrl+Y)">↪ Redo</button>
+  </div>
+</header>
 <main class="app">
-  <section class="controls">
-    <h1>Cover Snap</h1>
-    <p>A photo and a caption, made into a square cover.</p>
-    <label>Photo <input id="photo" type="file" accept="image/*"></label>
-    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-    <button id="export" type="button">Export PNG 1080 x 1080</button>
+  <section class="stage">
+    <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
+    <p class="hint">Click a panel to select it · drag to pan · scroll to zoom · pick a photo to place it in the selected panel.</p>
     <p id="status" role="status"></p>
   </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
+  <aside class="controls">
+    <section>
+      <h2>Presets — one click, poster done</h2>
+      <div id="presets" class="row"></div>
+    </section>
+    <section>
+      <h2>Photos — click to place in the selected panel</h2>
+      <div id="photos" class="thumbs"></div>
+      <label class="file">Upload your own photo <input id="upload" type="file" accept="image/*"></label>
+      <button id="shuffle" type="button">Shuffle photos</button>
+    </section>
+    <section>
+      <h2>Layout</h2>
+      <div id="layouts" class="row"></div>
+    </section>
+    <section>
+      <h2>Colour grade</h2>
+      <div id="grades" class="row"></div>
+      <label>Strength <input id="strength" type="range" min="0" max="1" step="0.05" value="0.85"> <span id="strengthVal">85%</span></label>
+    </section>
+    <section>
+      <h2>Lettering</h2>
+      <label>Title <input id="title" type="text" maxlength="30" value="SUNSET HEIST"></label>
+      <label>Subtitle (script) <input id="subtitle" type="text" maxlength="40" value="Neon Tide Nights"></label>
+      <label>Ribbon badge <input id="ribbon" type="text" maxlength="20" value="VICE BLOOM"></label>
+      <label>Bottom strip <input id="strip" type="text" maxlength="60" value="ONE COAST  •  NO RULES  •  COMING SOON"></label>
+      <label>Title position
+        <select id="titlePos">
+          <option value="over">Over the photos</option>
+          <option value="top">Top</option>
+          <option value="bottom">Bottom</option>
+        </select>
+      </label>
+      <label>Stars <input id="stars" type="number" min="0" max="5" value="5"></label>
+    </section>
+    <section>
+      <h2>Selected panel caption</h2>
+      <p id="slotLabel" class="muted">Panel 1 — boulevard</p>
+      <label>Place <input id="capPlace" type="text" maxlength="24"></label>
+      <label>Time <input id="capTime" type="text" maxlength="12"></label>
+      <label>Tagline <input id="capLine" type="text" maxlength="40"></label>
+      <label>Zoom <input id="zoom" type="range" min="1" max="3" step="0.05" value="1"></label>
+    </section>
+    <section>
+      <h2>Effects</h2>
+      <label class="check"><input id="halftone" type="checkbox" checked> Halftone dots in the sky</label>
+      <label>Halftone density <input id="halftoneDensity" type="range" min="0" max="1" step="0.05" value="0.55"></label>
+      <label class="check"><input id="grain" type="checkbox" checked> Film grain</label>
+      <label class="check"><input id="vignette" type="checkbox" checked> Vignette</label>
+      <label class="check"><input id="sunburst" type="checkbox" checked> Sunburst rays</label>
+    </section>
+    <section>
+      <h2>Export PNG</h2>
+      <div class="row">
+        <button type="button" data-export data-w="1080" data-h="1080" data-label="square">Square 1080×1080</button>
+        <button type="button" data-export data-w="1080" data-h="1350" data-label="portrait">Portrait 1080×1350</button>
+        <button type="button" data-export data-w="1920" data-h="1080" data-label="landscape">Landscape 1920×1080</button>
+        <button type="button" data-export data-w="1080" data-h="1920" data-label="story">Story 1080×1920</button>
+      </div>
+      <button id="exportAll" type="button" class="primary">Export all 4 (ZIP)</button>
+      <p class="muted">File names come from your title. ZIP falls back to four single downloads if it fails.</p>
+    </section>
+  </aside>
 </main>
 <script type="module" src="./src/main.js"></script>
 </body>
